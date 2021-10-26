@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package chittychat;
+
+service Chitty {
+  rpc Join (JoinRequest) returns (JoinConfirm) {}
+  rpc Publish (PublishMessage) returns (Message) {}
+  rpc Leave (LeaveRequest) returns (Message) {}
+}
+
+message JoinRequest {
+  string name = 1;
+}
+
+message JoinConfirm{
+    string name = 1;
+}
+
+message PublishMessage {
+  string message = 1;
+}
+
+message Message{
+    string message = 1;
+}
+
+message LeaveRequest {
+  string message = 1;
+}
