@@ -7,8 +7,11 @@ import (
 	"log"
 	"net"
 	"os"
+   
+    //første er init navnet
+	cc "chittychat/ChittyChat"
 
-	cc "Project2/ChittyChat/ChittyChat"
+    "google.golang.org/grpc"
 )
 
 const (
@@ -17,12 +20,12 @@ const (
 
 func main() {
 	address := ":" + os.Args[1]
-	fmt.Println(address)
-
-	lis, err := net.Listen("tcp", address)
+	
+    conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Fatalf("did not connect: %v", err)
 	}
+	defer conn.Close()
 
-	cc.JoinRequest
+	client := cc.NewChittyClient(conn)
 }
