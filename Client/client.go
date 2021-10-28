@@ -61,6 +61,7 @@ func main() {
 	done := make(chan int)
 
 	id := os.Args[1]
+	waiter := &sync.WaitGroup{}
 
 	conn, err := grpc.Dial("localhost:8080", grpc.WithInsecure())
 
@@ -77,33 +78,35 @@ func main() {
 
 	sendJoinMessage(chatter)
 
-	wait.Add(1) // since we have to create another go routine below
+	waiter.Add(1) // since we have to create another go routine below
 
-	go func() {
-		defer wait.Done() // makes sure we know when wait. finishes
-
-		scanner := bufio.NewScanner(os.Stdin) // to scan the input from the user through the command line
-		for scanner.Scan() {
-			message := &proto.Message{
-				Id:        chatter.Id,
-				Message:   scanner.Text(),
-				Timestamp: 1, // change
-			}
-			_, err := client.BroadcastMessage(context.Background(), message)
-
-			if err != nil {
-				log.Println("error sending message: ", err)
-				break
-			}
-		}
-	}()
+	go chatterTerminalMessages(waiter, chatter)
 
 	go func() { // Wait for our waitgroup decrementing
-		wait.Wait()
+		waiter.Wait()
 		close(done)
 	}()
 
 	<-done // Wait until done sends back some data
+}
+
+func chatterTerminalMessages(waiter *sync.WaitGroup, chatter *proto.Client) {
+	defer waiter.Done() // makes sure we know when wait. finishes
+
+	scanner := bufio.NewScanner(os.Stdin) // to scan the input from the user through the command line
+	for scanner.Scan() {
+		message := &proto.Message{
+			Id:        chatter.Id,
+			Message:   scanner.Text(),
+			Timestamp: 1, // change
+		}
+		_, err := client.BroadcastMessage(context.Background(), message)
+
+		if err != nil {
+			log.Println("error sending message: ", err)
+			break
+		}
+	}
 }
 
 func sendJoinMessage(chatter *proto.Client) {
