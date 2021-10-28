@@ -47,7 +47,7 @@ func (s *Server) BroadcastMessage(c context.Context, message *proto.Message) (*p
 
 			if c.active {
 				err := c.stream.Send(message) // send message back to the client that is attached connection
-				log.Println("Message being sent to: ", c.stream)
+				log.Println("Message being sent to: ", c.id)
 
 				if err != nil {
 					log.Println("Could not send message")
