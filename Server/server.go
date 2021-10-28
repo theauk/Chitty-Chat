@@ -12,10 +12,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-const (
-	port = ":8000"
-)
-
 type Connection struct {
 	stream proto.Broadcast_CreateStreamServer
 	id     string
@@ -61,17 +57,15 @@ func (s *Server) BroadcastMessage(c context.Context, message *proto.Message) (*p
 			}
 
 		}(message, c)
-
-		go func() { // another go routine that runs and ensures that the waitgroup will wait for the other go routines
-			wait.Wait()
-			close(done)
-		}()
-
-		<-done // block the return statement until routines are done. Done needs to return something before we can return something
-		return &proto.Close{}, nil
-
 	}
 
+	go func() { // another go routine that runs and ensures that the waitgroup will wait for the other go routines
+		wait.Wait()
+		close(done)
+	}()
+
+	<-done // block the return statement until routines are done. Done needs to return something before we can return something
+	return &proto.Close{}, nil
 }
 
 func main() {
