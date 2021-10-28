@@ -4,28 +4,25 @@ package ChittyChat;
 
 option go_package = "ChittyChat/ChittyChat";
 
-service Chitty {
-  rpc Join (JoinRequest) returns (JoinConfirm) {}
-  rpc Publish (PublishMessage) returns (Message) {}
-  rpc Leave (LeaveRequest) returns (Message) {}
+message Client {
+  string id = 1;
 }
 
-message JoinRequest {
-  string name = 1;
+message Message {
+  string id = 1;
+  string message = 2;
+  int64 timestamp = 3;
 }
 
-message JoinConfirm{
-    string name = 1;
+message Connect {
+  Client user = 1;
+  bool active = 2;
 }
 
-message PublishMessage {
-  string message = 1;
-}
+message Close {} // ?
 
-message Message{
-    string message = 1;
-}
 
-message LeaveRequest {
-  string message = 1;
+service Broadcast {
+  rpc CreateStream(Connect) returns (stream Message);
+  rpc BroadcastMessage(Message) returns (Close);
 }
