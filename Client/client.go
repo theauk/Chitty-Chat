@@ -1,9 +1,6 @@
 package main
 
 import (
-	//"context"
-	//"log"
-
 	"bufio"
 	"context"
 	"fmt"
@@ -11,12 +8,12 @@ import (
 	"os"
 	"sync"
 
-	//første er init navnet
 	proto "chittychat/ChittyChat"
 
 	"google.golang.org/grpc"
 )
 
+// Global variables
 var client proto.BroadcastClient
 var wait *sync.WaitGroup
 
@@ -43,12 +40,12 @@ func connect(user *proto.Client) error {
 
 		for {
 
-			msg, err := str.Recv() // wait for us to recieve a message from the server
+			msg, err := str.Recv() // wait until receiving a message from the server
 			if err != nil {
 				streamError = fmt.Errorf("could not read message")
 				break
 			}
-			log.Println("Chatter ", msg.Id, " says: ", msg.Message)
+			log.Println("Chatter " + msg.Id + " says: " + msg.Message)
 		}
 
 	}(stream)
@@ -74,13 +71,16 @@ func main() {
 		Id: id,
 	}
 
-	connect(chatter)
+	connectError := connect(chatter)
+	if connectError != nil {
+		return
+	}
 
 	sendJoinMessage(chatter)
 
 	waiter.Add(1) // since we have to create another go routine below
 
-	go chatterTerminalMessages(waiter, chatter)
+	go createChatterMessage(waiter, chatter)
 
 	go func() { // Wait for our waitgroup decrementing
 		waiter.Wait()
@@ -90,8 +90,8 @@ func main() {
 	<-done // Wait until done sends back some data
 }
 
-func chatterTerminalMessages(waiter *sync.WaitGroup, chatter *proto.Client) {
-	defer waiter.Done() // makes sure we know when wait. finishes
+func createChatterMessage(waiter *sync.WaitGroup, chatter *proto.Client) {
+	defer waiter.Done() // makes sure we know when wait finishes
 
 	scanner := bufio.NewScanner(os.Stdin) // to scan the input from the user through the command line
 	for scanner.Scan() {

@@ -59,7 +59,7 @@ func (s *Server) BroadcastMessage(c context.Context, message *proto.Message) (*p
 		}(message, c)
 	}
 
-	go func() { // another go routine that runs and ensures that the waitgroup will wait for the other go routines
+	go func() { // another go routine that runs and ensures that the wait group will wait for the other go routines
 		wait.Wait()
 		close(done)
 	}()
@@ -83,5 +83,8 @@ func main() {
 	log.Println("Started server at port 8080")
 
 	proto.RegisterBroadcastServer(serverGrpc, server)
-	serverGrpc.Serve(listener)
+	serveError := serverGrpc.Serve(listener)
+	if serveError != nil {
+		log.Fatalf("Could not serve listener")
+	}
 }
