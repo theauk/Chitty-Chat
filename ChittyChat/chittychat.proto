@@ -19,8 +19,7 @@ message Connect {
   bool active = 2;
 }
 
-message Close {} // ?
-
+message Close {}
 
 service Broadcast {
   rpc CreateStream(Connect) returns (stream Message);

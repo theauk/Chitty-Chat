@@ -1,15 +1,12 @@
 package main
 
 import (
-	"context"
-	"log"
-	"sync"
-
-	// "context"
 	proto "chittychat/ChittyChat"
-	"net"
-
+	"context"
 	"google.golang.org/grpc"
+	"log"
+	"net"
+	"sync"
 )
 
 type Connection struct {
@@ -19,14 +16,16 @@ type Connection struct {
 	error  chan error
 }
 
+// Server holds a collection of connections (information about the clients)
 type Server struct {
-	Connection []*Connection // collection of connections (pointing to connections)
+	Connection []*Connection
 }
 
-func (s *Server) CreateStream(pcon *proto.Connect, stream proto.Broadcast_CreateStreamServer) error {
-	con := &Connection{ // ?
+// CreateStream implements interface from proto file
+func (s *Server) CreateStream(pConnection *proto.Connect, stream proto.Broadcast_CreateStreamServer) error {
+	con := &Connection{
 		stream: stream,
-		id:     pcon.User.Id,
+		id:     pConnection.User.Id,
 		active: true,
 		error:  make(chan error),
 	}
@@ -35,18 +34,21 @@ func (s *Server) CreateStream(pcon *proto.Connect, stream proto.Broadcast_Create
 	return <-con.error
 }
 
+// BroadcastMessage implements interface from proto file. The method is used to broadcast messages to all active clients
 func (s *Server) BroadcastMessage(c context.Context, message *proto.Message) (*proto.Close, error) {
-	wait := &sync.WaitGroup{} // waits for the go routines to finish
-	done := make(chan int)    // to know when all the go routines are finished
+	// Wait group to keep check of the go routines
+	wait := &sync.WaitGroup{}
+	done := make(chan int)
 
 	for _, c := range s.Connection {
-		wait.Add(1) // add new go routine to wait group
+		wait.Add(1)
 
 		go func(message *proto.Message, c *Connection) {
 			defer wait.Done()
 
+			// Only broadcast messages to active clients
 			if c.active {
-				err := c.stream.Send(message) // send message back to the client that is attached connection
+				err := c.stream.Send(message) // Send message back to the client who is attached to the connection
 				log.Println("Message being sent to: " + c.id)
 
 				if err != nil {
@@ -58,51 +60,51 @@ func (s *Server) BroadcastMessage(c context.Context, message *proto.Message) (*p
 		}(message, c)
 	}
 
+	// Wait until all routines are done
 	go func() {
 		wait.Wait()
 		close(done)
 	}()
 
-	<-done // block the return statement until routines are done. Done needs to return something before we can return something
+	<-done // Block the statements below until routines are done
 
-	donetwo := make(chan int)
+	findNonActiveClients(s, wait)
 
-	for _, c := range s.Connection {
-		//log.Print("Client is ", c.active)
-		if !c.active {
-			go sendLeaveMessage(c.id, wait, s.Connection)
-		//	log.Print("It is false")
-		}
-	}
-
-	//log.Print("done two func")
-
-	go func() {
-		wait.Wait()
-		close(donetwo)
-	}()
-
-	<-donetwo // block the return statement until routines are done. Done needs to return something before we can return something
-	//log.Println("Done with two")
 	return &proto.Close{}, nil
 }
 
-func sendLeaveMessage(id string, wait *sync.WaitGroup, conncections []*Connection) {
+func findNonActiveClients(s *Server, wait *sync.WaitGroup) {
+	done := make(chan int)
 
-	for _, c := range conncections {
-		wait.Add(1) // add new go routine to wait group
+	for _, c := range s.Connection {
+		if !c.active {
+			go sendLeaveMessage(c.id, wait, s.Connection)
+		}
+	}
+
+	go func() {
+		wait.Wait()
+		close(done)
+	}()
+
+	<-done // Block the statements below until routines are done
+}
+
+func sendLeaveMessage(id string, wait *sync.WaitGroup, connections []*Connection) {
+
+	for _, c := range connections {
+		wait.Add(1)
 
 		go func(c *Connection) {
 			defer wait.Done()
 
 			if c.active {
 				message := &proto.Message{
-					Id:        id,
-					Message:   "I left the chat",
-					Timestamp: 1, // change
+					Id:      id,
+					Message: "I left the chat",
 				}
 
-				err := c.stream.Send(message) // send message back to the client that is attached connection
+				err := c.stream.Send(message)
 				log.Println("Message being sent to: " + c.id)
 
 				if err != nil {
@@ -129,7 +131,7 @@ func main() {
 
 	log.Println("Started server at port 8080")
 
-	proto.RegisterBroadcastServer(serverGrpc, server)
+	proto.RegisterBroadcastServer(serverGrpc, server) // Register the gRPC service
 	serveError := serverGrpc.Serve(listener)
 	if serveError != nil {
 		log.Fatalf("Could not serve listener")

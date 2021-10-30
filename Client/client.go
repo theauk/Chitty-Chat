@@ -47,7 +47,7 @@ func connect(user *proto.Client) error {
 				break
 			}
 			updateTime(msg.Timestamp)
-			log.Printf("Chatter "+msg.Id+" says: "+msg.Message+" at timestamp: %d", clientTime)
+			log.Printf("Lamport timestamp: %d | Client %s says: %s", clientTime, msg.Id, msg.Message)
 		}
 
 	}(stream)
@@ -90,7 +90,7 @@ func main() {
 
 	go createChatterMessage(waiter, chatter)
 
-	go func() { // Wait for our waitgroup decrementing
+	go func() { // Wait for our wait group decrementing
 		waiter.Wait()
 		close(done)
 	}()
