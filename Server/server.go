@@ -36,6 +36,7 @@ func (s *Server) CreateStream(pcon *proto.Connect, stream proto.Broadcast_Create
 }
 
 func (s *Server) BroadcastMessage(c context.Context, message *proto.Message) (*proto.Close, error) {
+	var bysies []string
 	wait := sync.WaitGroup{} // waits for the go routines to finish
 	done := make(chan int)   // to know when all the go routines are finished
 
@@ -47,12 +48,12 @@ func (s *Server) BroadcastMessage(c context.Context, message *proto.Message) (*p
 
 			if c.active {
 				err := c.stream.Send(message) // send message back to the client that is attached connection
-				log.Println("Message being sent to: ", c.id)
+				log.Println("Message being sent to: " + c.id)
 
 				if err != nil {
-					log.Println("Could not send message")
+					log.Println("Could not send message to: " + c.id)
 					c.active = false
-					c.error <- err
+					bysies = append(bysies, c.id)
 				}
 			}
 
@@ -61,10 +62,41 @@ func (s *Server) BroadcastMessage(c context.Context, message *proto.Message) (*p
 
 	go func() { // another go routine that runs and ensures that the wait group will wait for the other go routines
 		wait.Wait()
+	}()
+
+	for _, leftId := range bysies {
+		wait.Add(1)
+
+		for _, c := range s.Connection {
+
+			go func(c *Connection) {
+				defer wait.Done()
+
+				if c.active {
+					message := &proto.Message{
+						Id:        leftId,
+						Message:   " : I left the chat",
+						Timestamp: 1, // change
+					}
+
+					err := c.stream.Send(message) // send message back to the client that is attached connection
+
+					if err != nil {
+						log.Println("Could not send message to: " + c.id)
+					}
+				}
+
+			}(c)
+		}
+	}
+
+	go func() { // another go routine that runs and ensures that the wait group will wait for the other go routines
+		wait.Wait()
 		close(done)
 	}()
 
 	<-done // block the return statement until routines are done. Done needs to return something before we can return something
+
 	return &proto.Close{}, nil
 }
 
