@@ -21,7 +21,6 @@ type Connection struct {
 
 type Server struct {
 	Connection []*Connection // collection of connections (pointing to connections)
-	
 }
 
 func (s *Server) CreateStream(pcon *proto.Connect, stream proto.Broadcast_CreateStreamServer) error {

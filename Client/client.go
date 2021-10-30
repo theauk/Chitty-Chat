@@ -16,6 +16,7 @@ import (
 // Global variables
 var client proto.BroadcastClient
 var wait *sync.WaitGroup
+var clientTime int64 = 0
 
 func init() {
 	wait = &sync.WaitGroup{}
@@ -45,19 +46,26 @@ func connect(user *proto.Client) error {
 				streamError = fmt.Errorf("could not read message")
 				break
 			}
-			log.Println("Chatter " + msg.Id + " says: " + msg.Message)
+			updateTime(msg.Timestamp)
+			log.Printf("Chatter "+msg.Id+" says: "+msg.Message+" at timestamp: %d", clientTime)
 		}
 
 	}(stream)
 
 	return streamError
+}
 
+func updateTime(incomingTime int64) {
+	if incomingTime > clientTime {
+		clientTime = incomingTime
+	}
+	clientTime++
 }
 
 func main() {
 	done := make(chan int)
 
-	id := os.Args[1]
+	id := os.Args[1] // handle
 	waiter := &sync.WaitGroup{}
 
 	conn, err := grpc.Dial("localhost:8080", grpc.WithInsecure())
@@ -95,10 +103,11 @@ func createChatterMessage(waiter *sync.WaitGroup, chatter *proto.Client) {
 
 	scanner := bufio.NewScanner(os.Stdin) // to scan the input from the user through the command line
 	for scanner.Scan() {
+		clientTime++
 		message := &proto.Message{
 			Id:        chatter.Id,
 			Message:   scanner.Text(),
-			Timestamp: 1, // change
+			Timestamp: clientTime,
 		}
 		_, err := client.BroadcastMessage(context.Background(), message)
 
@@ -110,11 +119,11 @@ func createChatterMessage(waiter *sync.WaitGroup, chatter *proto.Client) {
 }
 
 func sendJoinMessage(chatter *proto.Client) {
-
+	clientTime++
 	newChatterMsg := &proto.Message{
 		Id:        chatter.Id,
 		Message:   "I'm joining",
-		Timestamp: 1, // change
+		Timestamp: clientTime,
 	}
 
 	_, joinErr := client.BroadcastMessage(context.Background(), newChatterMsg)
@@ -123,4 +132,3 @@ func sendJoinMessage(chatter *proto.Client) {
 		log.Println("error sending join message: ", joinErr)
 	}
 }
-
