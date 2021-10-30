@@ -62,41 +62,53 @@ func (s *Server) BroadcastMessage(c context.Context, message *proto.Message) (*p
 
 	go func() { // another go routine that runs and ensures that the wait group will wait for the other go routines
 		wait.Wait()
+		
 	}()
 
-	for _, leftId := range bysies {
-		wait.Add(1)
+	
 
-		for _, c := range s.Connection {
+	go func(){
+		wait.Wait()
+		close(done)
+	}()
 
-			go func(c *Connection) {
-				defer wait.Done()
+	<-done // block the return statement until routines are done. Done needs to return something before we can return something
+	return &proto.Close{}, nil
+}
 
-				if c.active {
-					message := &proto.Message{
-						Id:        leftId,
-						Message:   " : I left the chat",
-						Timestamp: 1, // change
-					}
+func (s *Server) SendLeaveMessage(c context.Context, leaveClient *proto.Client,) (*proto.Close, error) {
+	wait := sync.WaitGroup{} // waits for the go routines to finish
+	done := make(chan int)   // to know when all the go routines are finished
 
-					err := c.stream.Send(message) // send message back to the client that is attached connection
+	for _, c := range s.Connection {
+		wait.Add(1) // add new go routine to wait group
 
-					if err != nil {
-						log.Println("Could not send message to: " + c.id)
-					}
+		go func(c *Connection) {
+			defer wait.Done()
+
+			if c.active {
+				message := &proto.Message{
+					Id:        leaveClient.Id,
+					Message:   " chatter has left",
+					Timestamp: 1, // change
 				}
 
-			}(c)
-		}
-	}
+				err := c.stream.Send(message) // send message back to the client that is attached connection
+				log.Println("Leave message being sent to: " + c.id)
 
+				if err != nil {
+					log.Println("Could not send leave message to: " + c.id)
+				}
+			}
+
+		}(c)
+	}
 	go func() { // another go routine that runs and ensures that the wait group will wait for the other go routines
 		wait.Wait()
 		close(done)
 	}()
 
 	<-done // block the return statement until routines are done. Done needs to return something before we can return something
-
 	return &proto.Close{}, nil
 }
 
