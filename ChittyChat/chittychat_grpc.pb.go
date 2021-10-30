@@ -20,7 +20,6 @@ const _ = grpc.SupportPackageIsVersion7
 type BroadcastClient interface {
 	CreateStream(ctx context.Context, in *Connect, opts ...grpc.CallOption) (Broadcast_CreateStreamClient, error)
 	BroadcastMessage(ctx context.Context, in *Message, opts ...grpc.CallOption) (*Close, error)
-	SendLeaveMessage(ctx context.Context, in *Client, opts ...grpc.CallOption) (*Close, error)
 }
 
 type broadcastClient struct {
@@ -72,22 +71,12 @@ func (c *broadcastClient) BroadcastMessage(ctx context.Context, in *Message, opt
 	return out, nil
 }
 
-func (c *broadcastClient) SendLeaveMessage(ctx context.Context, in *Client, opts ...grpc.CallOption) (*Close, error) {
-	out := new(Close)
-	err := c.cc.Invoke(ctx, "/ChittyChat.Broadcast/SendLeaveMessage", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // BroadcastServer is the server API for Broadcast service.
 // All implementations must embed UnimplementedBroadcastServer
 // for forward compatibility
 type BroadcastServer interface {
 	CreateStream(*Connect, Broadcast_CreateStreamServer) error
 	BroadcastMessage(context.Context, *Message) (*Close, error)
-	SendLeaveMessage(context.Context, *Client) (*Close, error)
 	//mustEmbedUnimplementedBroadcastServer()
 }
 
@@ -100,9 +89,6 @@ func (UnimplementedBroadcastServer) CreateStream(*Connect, Broadcast_CreateStrea
 }
 func (UnimplementedBroadcastServer) BroadcastMessage(context.Context, *Message) (*Close, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BroadcastMessage not implemented")
-}
-func (UnimplementedBroadcastServer) SendLeaveMessage(context.Context, *Client) (*Close, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SendLeaveMessage not implemented")
 }
 func (UnimplementedBroadcastServer) mustEmbedUnimplementedBroadcastServer() {}
 
@@ -156,24 +142,6 @@ func _Broadcast_BroadcastMessage_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Broadcast_SendLeaveMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Client)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BroadcastServer).SendLeaveMessage(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/ChittyChat.Broadcast/SendLeaveMessage",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BroadcastServer).SendLeaveMessage(ctx, req.(*Client))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // Broadcast_ServiceDesc is the grpc.ServiceDesc for Broadcast service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -184,10 +152,6 @@ var Broadcast_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "BroadcastMessage",
 			Handler:    _Broadcast_BroadcastMessage_Handler,
-		},
-		{
-			MethodName: "SendLeaveMessage",
-			Handler:    _Broadcast_SendLeaveMessage_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

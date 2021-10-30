@@ -123,3 +123,4 @@ func sendJoinMessage(chatter *proto.Client) {
 		log.Println("error sending join message: ", joinErr)
 	}
 }
+

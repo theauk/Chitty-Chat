@@ -21,6 +21,7 @@ type Connection struct {
 
 type Server struct {
 	Connection []*Connection // collection of connections (pointing to connections)
+	
 }
 
 func (s *Server) CreateStream(pcon *proto.Connect, stream proto.Broadcast_CreateStreamServer) error {
@@ -36,9 +37,8 @@ func (s *Server) CreateStream(pcon *proto.Connect, stream proto.Broadcast_Create
 }
 
 func (s *Server) BroadcastMessage(c context.Context, message *proto.Message) (*proto.Close, error) {
-	var bysies []string
-	wait := sync.WaitGroup{} // waits for the go routines to finish
-	done := make(chan int)   // to know when all the go routines are finished
+	wait := &sync.WaitGroup{} // waits for the go routines to finish
+	done := make(chan int)    // to know when all the go routines are finished
 
 	for _, c := range s.Connection {
 		wait.Add(1) // add new go routine to wait group
@@ -53,34 +53,44 @@ func (s *Server) BroadcastMessage(c context.Context, message *proto.Message) (*p
 				if err != nil {
 					log.Println("Could not send message to: " + c.id)
 					c.active = false
-					bysies = append(bysies, c.id)
 				}
 			}
 
 		}(message, c)
 	}
 
-	go func() { // another go routine that runs and ensures that the wait group will wait for the other go routines
-		wait.Wait()
-		
-	}()
-
-	
-
-	go func(){
+	go func() {
 		wait.Wait()
 		close(done)
 	}()
 
 	<-done // block the return statement until routines are done. Done needs to return something before we can return something
+
+	donetwo := make(chan int)
+
+	for _, c := range s.Connection {
+		//log.Print("Client is ", c.active)
+		if !c.active {
+			go sendLeaveMessage(c.id, wait, s.Connection)
+		//	log.Print("It is false")
+		}
+	}
+
+	//log.Print("done two func")
+
+	go func() {
+		wait.Wait()
+		close(donetwo)
+	}()
+
+	<-donetwo // block the return statement until routines are done. Done needs to return something before we can return something
+	//log.Println("Done with two")
 	return &proto.Close{}, nil
 }
 
-func (s *Server) SendLeaveMessage(c context.Context, leaveClient *proto.Client,) (*proto.Close, error) {
-	wait := sync.WaitGroup{} // waits for the go routines to finish
-	done := make(chan int)   // to know when all the go routines are finished
+func sendLeaveMessage(id string, wait *sync.WaitGroup, conncections []*Connection) {
 
-	for _, c := range s.Connection {
+	for _, c := range conncections {
 		wait.Add(1) // add new go routine to wait group
 
 		go func(c *Connection) {
@@ -88,28 +98,22 @@ func (s *Server) SendLeaveMessage(c context.Context, leaveClient *proto.Client,)
 
 			if c.active {
 				message := &proto.Message{
-					Id:        leaveClient.Id,
-					Message:   " chatter has left",
+					Id:        id,
+					Message:   "I left the chat",
 					Timestamp: 1, // change
 				}
 
 				err := c.stream.Send(message) // send message back to the client that is attached connection
-				log.Println("Leave message being sent to: " + c.id)
+				log.Println("Message being sent to: " + c.id)
 
 				if err != nil {
-					log.Println("Could not send leave message to: " + c.id)
+					log.Println("Could not send message to: " + c.id)
+					c.active = false
 				}
 			}
 
 		}(c)
 	}
-	go func() { // another go routine that runs and ensures that the wait group will wait for the other go routines
-		wait.Wait()
-		close(done)
-	}()
-
-	<-done // block the return statement until routines are done. Done needs to return something before we can return something
-	return &proto.Close{}, nil
 }
 
 func main() {
