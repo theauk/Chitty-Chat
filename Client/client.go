@@ -28,8 +28,9 @@ func connect(user *proto.Client) error {
 
 	// Create a new client
 	stream, err := client.CreateStream(context.Background(), &proto.Connect{
-		User:   user,
-		Active: true,
+		User:             user,
+		Active:           true,
+		DeclaredInactive: false,
 	})
 
 	if err != nil {
