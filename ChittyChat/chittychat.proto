@@ -17,6 +17,7 @@ message Message {
 message Connect {
   Client user = 1;
   bool active = 2;
+  bool declaredInactive = 3;
 }
 
 message Close {}

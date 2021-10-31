@@ -10,10 +10,11 @@ import (
 )
 
 type Connection struct {
-	stream proto.Broadcast_CreateStreamServer
-	id     string
-	active bool
-	error  chan error
+	stream           proto.Broadcast_CreateStreamServer
+	id               string
+	active           bool
+	declaredInactive bool
+	error            chan error
 }
 
 // Server holds a collection of connections (information about the clients)
@@ -24,10 +25,11 @@ type Server struct {
 // CreateStream implements interface from proto file
 func (s *Server) CreateStream(pConnection *proto.Connect, stream proto.Broadcast_CreateStreamServer) error {
 	con := &Connection{
-		stream: stream,
-		id:     pConnection.User.Id,
-		active: true,
-		error:  make(chan error),
+		stream:           stream,
+		id:               pConnection.User.Id,
+		active:           true,
+		declaredInactive: false,
+		error:            make(chan error),
 	}
 
 	s.Connection = append(s.Connection, con)
@@ -68,17 +70,18 @@ func (s *Server) BroadcastMessage(c context.Context, message *proto.Message) (*p
 
 	<-done // Block the statements below until routines are done
 
-	findNonActiveClients(s, wait)
+	findInActiveClients(s, wait)
 
 	return &proto.Close{}, nil
 }
 
-func findNonActiveClients(s *Server, wait *sync.WaitGroup) {
+func findInActiveClients(s *Server, wait *sync.WaitGroup) {
 	done := make(chan int)
 
 	for _, c := range s.Connection {
-		if !c.active {
+		if !c.active && !c.declaredInactive {
 			go sendLeaveMessage(c.id, wait, s.Connection)
+			c.declaredInactive = true
 		}
 	}
 
