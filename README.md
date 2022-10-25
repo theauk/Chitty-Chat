@@ -1,2 +1,1 @@
-# Project2
-mini project 2
+# Distributed Chat Service
